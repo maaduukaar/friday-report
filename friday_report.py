@@ -2,53 +2,53 @@ import re
 import time
 import sys
 import os
+import tomllib
 from playwright.sync_api import Playwright, sync_playwright
 
-# --- НАСТРОЙКИ ТРУДОЗАТРАТ (в сумме должно быть ровно 100) ---
-# Мои трудозатраты
-SITES_ADMIN = 0         # Администрирование сайтов
-SITES_DEVELOPMENT = 0   # Доработка сайтов support
-REPORTING = 0           # Ведение (подготовка) отчетности
-DOCUMENTATION = 0       # Работа с внутренней документацией и базой знаний
-SITES_TECH_SUPPORT = 0  # Тех. сопровождение сайтов
+# --- ЗАГРУЗКА НАСТРОЕК ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BASE_DIR, "config.toml")
 
-# Остальное
-BUGS_PROCESSING = 0      # Обработка багов и заявок на доработку
-CLIENT_SUPPORT = 0       # Техподдержка клиентов
-INTERNAL_SUPPORT = 0     # Техподдержка внутренних пользователей
-WORKAROUNDS = 0          # Поиск обходных решений
-INFRASTRUCTURE = 0      # Поддержка внутренней инфраструктуры (прод, препрод, разработка, тестирование)
-BACKUPS = 0             # Работа с резервными копиями
-INTERNAL_TRAINING = 0   # Внутреннее обучение других сотрудников
-EXTERNAL_TRAINING = 0   # Обучение, повышение квалификации
-ANALYTICS = 0           # Аналитика (Naumen)
-TASK_TRACKER = 0        # Актуализиция информации по тикетам, работа в таск трекере (Youtrack
-QUALITY_CONTROL = 0     # Контроль качества (аудит) информации
-MANAGEMENT = 0          # Менеджмент (в т.ч. внутри подразделения, бизнес-процессы, смежные подразделения,
-CRM_DEVELOPMENT = 0     # Доработка системы CRM
-NAUMEN_ADMIN = 0        # Администрирование Naumen
+if not os.path.exists(CONFIG_PATH):
+    print(f"\n❌ ОШИБКА: Конфигурационный файл '{CONFIG_PATH}' не найден!")
+    sys.exit(1)
 
-TOTAL_SUM = (
-    BUGS_PROCESSING + CLIENT_SUPPORT + INTERNAL_SUPPORT + WORKAROUNDS +
-    INFRASTRUCTURE + BACKUPS + DOCUMENTATION + INTERNAL_TRAINING +
-    EXTERNAL_TRAINING + REPORTING + ANALYTICS + TASK_TRACKER +
-    QUALITY_CONTROL + MANAGEMENT + CRM_DEVELOPMENT + NAUMEN_ADMIN +
-    SITES_TECH_SUPPORT + SITES_ADMIN + SITES_DEVELOPMENT
-)
+with open(CONFIG_PATH, "rb") as f:
+    config = tomllib.load(f)
+
+# Извлечение общих настроек
+URL = config.get("url", "https://forms.yandex.ru/u/696a31421f1eb52eecdbc9df/")
+DEPARTMENT = config.get("department", "ОППО")
+EMPLOYEE_NAME = config.get("employee_name", "Шведов Максим")
+
+# Извлечение трудозатрат
+workload = config.get("workload", {})
+
+# Динамическое создание переменных в глобальном пространстве имен для обратной совместимости 
+# (или можно использовать словарь workload напрямую, что чище)
+globals().update(workload)
+
+# Список всех ключей трудозатрат для проверки суммы
+WORKLOAD_KEYS = [
+    "BUGS_PROCESSING", "CLIENT_SUPPORT", "INTERNAL_SUPPORT", "WORKAROUNDS",
+    "INFRASTRUCTURE", "BACKUPS", "DOCUMENTATION", "INTERNAL_TRAINING",
+    "EXTERNAL_TRAINING", "REPORTING", "ANALYTICS", "TASK_TRACKER",
+    "QUALITY_CONTROL", "MANAGEMENT", "CRM_DEVELOPMENT", "NAUMEN_ADMIN",
+    "SITES_TECH_SUPPORT", "SITES_ADMIN", "SITES_DEVELOPMENT"
+]
+
+TOTAL_SUM = sum(workload.get(key, 0) for key in WORKLOAD_KEYS)
 
 if TOTAL_SUM != 100:
-    print(f"\n❌ ОШИБКА: Сумма трудозатрат равна {TOTAL_SUM}, а должна быть ровно 100!")
-    print("Пожалуйста, исправьте значения переменных в начале скрипта.")
+    print(f"\n❌ ОШИБКА: Сумма трудозатрат в config.toml равна {TOTAL_SUM}, а должна быть ровно 100!")
+    print("Пожалуйста, исправьте значения в [workload].")
     sys.exit(1)
 
 
 # --- ПАПКА ДЛЯ СКРИНШОТОВ ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VERIFIED_DIR = os.path.join(BASE_DIR, "verified")
 os.makedirs(VERIFIED_DIR, exist_ok=True)
 
-
-URL = "URL"
 MAX_RETRIES = 5
 STEP_DELAY = 0.05  # секунды между действиями (можно изменить)
 
@@ -88,7 +88,7 @@ def run(playwright: Playwright) -> None:
     page.wait_for_selector("#answer_choices_68039958", timeout=30_000)
 
     step(lambda: page.locator("#answer_choices_68039958").click())
-    step(lambda: page.locator("div").filter(has_text=re.compile(r"^ОППО$")).nth(2).click())
+    step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(DEPARTMENT)}$")).nth(2).click())
     step(lambda: page.get_by_role("button", name="Календарь").click())
     # Выбираем текущую дату по CSS-классу (подсвеченная кнопка сегодняшнего дня)
     step(lambda: page.locator(".g-date-calendar__button_current").first.click())
@@ -96,7 +96,7 @@ def run(playwright: Playwright) -> None:
     step(lambda: page.get_by_role("button", name="Далее").click())
 
     step(lambda: page.locator("#answer_choices_68042447").click())
-    step(lambda: page.locator("div").filter(has_text=re.compile(r"^Шведов Максим$")).nth(2).click())
+    step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(EMPLOYEE_NAME)}$")).nth(2).click())
     page.screenshot(path=os.path.join(VERIFIED_DIR, "02_name_page.png"))
     step(lambda: page.get_by_role("button", name="Далее").click())
 
