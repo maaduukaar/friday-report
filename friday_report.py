@@ -100,23 +100,21 @@ def run(playwright: Playwright) -> None:
     for attempt in range(1, MAX_RETRIES + 1):
         page.goto(URL)
         try:
-            page.wait_for_selector(
-                "text=Трудозатраты ДИТ, text=Что-то пошло не так",
-                timeout=10_000
-            )
+            # Быстрая проверка загрузки формы (ожидаем селектор первой страницы)
+            page.wait_for_selector("#answer_choices_68039958", timeout=15_000)
+            print(f"Попытка {attempt}: форма загружена")
+            break
         except Exception:
-            pass
-        if page.get_by_text("Что-то пошло не так").count() > 0:
-            print(f"Попытка {attempt}: ошибка — перезагружаю...")
-            if attempt == MAX_RETRIES:
-                raise RuntimeError("Форма недоступна после нескольких попыток")
-            continue
-        print(f"Попытка {attempt}: форма загружена")
-        break
+            if page.get_by_text("Что-то пошло не так").count() > 0:
+                print(f"Попытка {attempt}: ошибка — перезагружаю...")
+                if attempt == MAX_RETRIES:
+                    raise RuntimeError("Форма недоступна после нескольких попыток")
+                continue
+            # Если форма все же загрузилась (селектор по какой-то причине не сработал), продолжаем
+            if page.locator("#answer_choices_68039958").count() > 0:
+                print(f"Попытка {attempt}: форма загружена")
+                break
     # --- Конец блока загрузки ---
-
-    # Ждём появления интерактивных элементов формы
-    page.wait_for_selector("#answer_choices_68039958", timeout=30_000)
 
     step(lambda: page.locator("#answer_choices_68039958").click())
     step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(DEPARTMENT)}$")).nth(2).click())
