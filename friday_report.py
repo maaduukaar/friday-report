@@ -20,6 +20,8 @@ with open(CONFIG_PATH, "rb") as f:
 URL = config.get("url", "https://forms.yandex.ru/u/696a31421f1eb52eecdbc9df/")
 DEPARTMENT = config.get("department", "ОППО")
 EMPLOYEE_NAME = config.get("employee_name", "Шведов Максим")
+BROWSER_MODE = config.get("browser_mode", "local").lower()
+BROWSERLESS_TOKEN = config.get("browserless_token", "")
 
 # Извлечение трудозатрат
 workload = config.get("workload", {})
@@ -61,7 +63,17 @@ def step(action):
 
 
 def run(playwright: Playwright) -> None:
-    browser = playwright.chromium.launch(headless=False)
+    if BROWSER_MODE == "remote":
+        if not BROWSERLESS_TOKEN:
+            print("\n❌ ОШИБКА: Токен 'browserless_token' не указан в config.toml для удаленного режима!")
+            sys.exit(1)
+        ws_url = f"wss://chrome.browserless.io?token={BROWSERLESS_TOKEN}"
+        print("🌐 Подключение к удаленному браузеру Browserless...")
+        browser = playwright.chromium.connect_over_cdp(ws_url)
+    else:
+        print("💻 Запуск локального браузера...")
+        browser = playwright.chromium.launch(headless=False)
+
     context = browser.new_context()
     page = context.new_page()
 

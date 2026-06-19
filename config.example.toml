@@ -3,6 +3,11 @@ url = "ВАША_ССЫЛКА_НА_ФОРМУ"
 department = "ВАШ_ОТДЕЛ"
 employee_name = "ВАШЕ_ИМЯ"
 
+# --- НАСТРОЙКИ БРАУЗЕРА ---
+# browser_mode: "local" (локальный запуск) или "remote" (удаленный через browserless.io)
+browser_mode = "local"
+browserless_token = "ВАШ_ТОКЕН_BROWSERLESS"
+
 [workload]
 # --- НАСТРОЙКИ ТРУДОЗАТРАТ (в сумме должно быть ровно 100) ---
 # Мои трудозатраты
