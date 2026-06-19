@@ -65,10 +65,7 @@ def step(action):
 
 
 def save_screenshot(page, name, full_page=False):
-    """Сохраняет скриншот. В удаленном режиме пропускает промежуточные скриншоты для экономии времени."""
-    if BROWSER_MODE == "remote" and name in ["01_start_page.png", "02_name_page.png", "03_confirm_page.png"]:
-        return
-    
+    """Сохраняет скриншот."""
     path = os.path.join(VERIFIED_DIR, name)
     try:
         page.screenshot(path=path, full_page=full_page)
