@@ -111,22 +111,22 @@ def run(playwright: Playwright) -> None:
                 break
     # --- Конец блока загрузки ---
 
-    step(lambda: page.locator("#answer_choices_68039958").click())
-    step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(DEPARTMENT)}$")).nth(2).click())
-    step(lambda: page.get_by_role("button", name="Календарь").click())
+    step(lambda: page.locator("#answer_choices_68039958").evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("option", name=DEPARTMENT, exact=True).evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("button", name="Календарь").evaluate("el => el.click()"))
     # Выбираем текущую дату по CSS-классу (подсвеченная кнопка сегодняшнего дня)
-    step(lambda: page.locator(".g-date-calendar__button_current").first.click())
+    step(lambda: page.locator(".g-date-calendar__button_current").first.evaluate("el => el.click()"))
     save_screenshot(page, "01_start_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").click())
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
 
-    step(lambda: page.locator("#answer_choices_68042447").click())
-    step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(EMPLOYEE_NAME)}$")).nth(2).click())
+    step(lambda: page.locator("#answer_choices_68042447").evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("option", name=EMPLOYEE_NAME, exact=True).evaluate("el => el.click()"))
     save_screenshot(page, "02_name_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").click())
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
 
-    step(lambda: page.get_by_text("Нет").click())
+    step(lambda: page.get_by_text("Нет").evaluate("el => el.click()"))
     save_screenshot(page, "03_confirm_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").click())
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
 
     # Ждем загрузки полей ввода трудозатрат
     page.wait_for_selector("#id-question-68085646", timeout=15_000)
