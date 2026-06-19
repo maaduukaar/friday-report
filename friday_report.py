@@ -24,6 +24,7 @@ BROWSER_MODE = config.get("browser_mode", "local").lower()
 BROWSERLESS_TOKEN = config.get("browserless_token", "")
 BROWSERLESS_ENDPOINT = config.get("browserless_endpoint", "wss://chrome.browserless.io").rstrip("/")
 SESSION_REPLAY = config.get("session_replay", False)
+DEBUG = config.get("debug", True)
 
 # Извлечение трудозатрат
 workload = config.get("workload", {})
@@ -57,18 +58,24 @@ MAX_RETRIES = 5
 STEP_DELAY = 0.05  # секунды между действиями (можно изменить)
 
 
-def step(action):
+def step(action, description=None):
     """Выполняет действие и делает паузу STEP_DELAY секунд."""
+    t0 = time.time()
     result = action()
+    if DEBUG and description:
+        print(f"⏱️ [{description}] выполнено за {time.time() - t0:.2f} сек.")
     time.sleep(STEP_DELAY)
     return result
 
 
 def save_screenshot(page, name, full_page=False):
     """Сохраняет скриншот."""
+    t0 = time.time()
     path = os.path.join(VERIFIED_DIR, name)
     try:
         page.screenshot(path=path, full_page=full_page)
+        if DEBUG:
+            print(f"📸 Скриншот {name} сохранен за {time.time() - t0:.2f} сек.")
     except Exception as e:
         print(f"⚠️ Не удалось сохранить скриншот {name}: {e}")
 
@@ -93,11 +100,15 @@ def run(playwright: Playwright) -> None:
 
     # --- Загрузка страницы с перезагрузкой при ошибке ---
     for attempt in range(1, MAX_RETRIES + 1):
+        t_goto = time.time()
         page.goto(URL, wait_until="commit")
+        if DEBUG:
+            print(f"⏱️ Загрузка страницы (goto) выполнена за {time.time() - t_goto:.2f} сек.")
         try:
             # Быстрая проверка загрузки формы (ожидаем селектор первой страницы)
+            t_wait = time.time()
             page.wait_for_selector("#answer_choices_68039958", timeout=15_000)
-            print(f"Попытка {attempt}: форма загружена")
+            print(f"Попытка {attempt}: форма загружена" + (f" (wait_for_selector за {time.time() - t_wait:.2f} сек.)" if DEBUG else ""))
             break
         except Exception:
             if page.get_by_text("Что-то пошло не так").count() > 0:
@@ -111,28 +122,32 @@ def run(playwright: Playwright) -> None:
                 break
     # --- Конец блока загрузки ---
 
-    step(lambda: page.locator("#answer_choices_68039958").evaluate("el => el.click()"))
-    step(lambda: page.get_by_role("option", name=DEPARTMENT, exact=True).evaluate("el => el.click()"))
-    step(lambda: page.get_by_role("button", name="Календарь").evaluate("el => el.click()"))
+    step(lambda: page.locator("#answer_choices_68039958").evaluate("el => el.click()"), "выбор отдела: клик по полю")
+    step(lambda: page.get_by_role("option", name=DEPARTMENT, exact=True).evaluate("el => el.click()"), f"выбор отдела: клик по '{DEPARTMENT}'")
+    step(lambda: page.get_by_role("button", name="Календарь").evaluate("el => el.click()"), "выбор даты: открытие календаря")
     # Выбираем текущую дату по CSS-классу (подсвеченная кнопка сегодняшнего дня)
-    step(lambda: page.locator(".g-date-calendar__button_current").first.evaluate("el => el.click()"))
+    step(lambda: page.locator(".g-date-calendar__button_current").first.evaluate("el => el.click()"), "выбор даты: клик по текущему дню")
     save_screenshot(page, "01_start_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"), "клик 'Далее' (первый шаг)")
 
-    step(lambda: page.locator("#answer_choices_68042447").evaluate("el => el.click()"))
-    step(lambda: page.get_by_role("option", name=EMPLOYEE_NAME, exact=True).evaluate("el => el.click()"))
+    step(lambda: page.locator("#answer_choices_68042447").evaluate("el => el.click()"), "выбор сотрудника: клик по полю")
+    step(lambda: page.get_by_role("option", name=EMPLOYEE_NAME, exact=True).evaluate("el => el.click()"), f"выбор сотрудника: клик по '{EMPLOYEE_NAME}'")
     save_screenshot(page, "02_name_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"), "клик 'Далее' (второй шаг)")
 
-    step(lambda: page.get_by_text("Нет").evaluate("el => el.click()"))
+    step(lambda: page.get_by_text("Нет").evaluate("el => el.click()"), "подтверждение отсутствия изменений: выбор 'Нет'")
     save_screenshot(page, "03_confirm_page.png")
-    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"))
+    step(lambda: page.get_by_role("button", name="Далее").evaluate("el => el.click()"), "клик 'Далее' (третий шаг)")
 
     # Ждем загрузки полей ввода трудозатрат
+    t_wait_fields = time.time()
     page.wait_for_selector("#id-question-68085646", timeout=15_000)
+    if DEBUG:
+        print(f"⏱️ Ожидание полей ввода трудозатрат заняло {time.time() - t_wait_fields:.2f} сек.")
 
     # Заполняем все поля одним JS-вызовом (критично для remote-режима — экономит время сессии)
     # ID полей зафиксированы на основе реальной структуры формы
+    t_fill = time.time()
     page.evaluate("""
     (fields) => {
         const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
@@ -165,20 +180,23 @@ def run(playwright: Playwright) -> None:
         "id-question-68092354": workload.get("SITES_ADMIN", 0),
         "id-question-68092384": workload.get("SITES_DEVELOPMENT", 0),
     })
+    if DEBUG:
+        print(f"⏱️ Заполнение полей формы (evaluate) выполнено за {time.time() - t_fill:.2f} сек.")
 
     # Скриншот заполненного финала
     save_screenshot(page, "04_workload_filled.png", full_page=True)
 
-    # Нажимаем кнопку "Отправить"
-    # step(lambda: page.get_by_role("button", name="Отправить").click())
-
-    # Короткая пауза, чтобы страница успела обновиться после клика
-    time.sleep(2)
+    if not DEBUG:
+        # Нажимаем кнопку "Отправить"
+        step(lambda: page.get_by_role("button", name="Отправить").click(), "отправка формы")
+        # Короткая пауза, чтобы страница успела обновиться после клика
+        time.sleep(2)
+        print("\n✅ Форма отправлена! Скриншоты сохранены в папке 'verified'.")
+    else:
+        print("\n⚠️ Режим отладки (debug = true): отправка формы пропущена. Скриншоты сохранены в папке 'verified'.")
 
     # Делаем финальный скриншот
     save_screenshot(page, "05_final_page.png", full_page=True)
-
-    print("\n✅ Форма отправлена! Скриншоты сохранены в папке 'verified'.")
 
     # Останавливаем запись Session Replay через CDP
     if BROWSER_MODE == "remote" and SESSION_REPLAY:
