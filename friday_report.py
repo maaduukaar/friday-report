@@ -62,6 +62,20 @@ def step(action):
     return result
 
 
+def save_screenshot(page, name, full_page=False):
+    """Сохраняет скриншот. В удаленном режиме пропускает промежуточные скриншоты для экономии времени."""
+    if BROWSER_MODE == "remote" and name in ["01_start_page.png", "02_name_page.png", "03_confirm_page.png"]:
+        return
+    
+    path = os.path.join(VERIFIED_DIR, name)
+    try:
+        # В удаленном режиме не используем full_page, так как это значительно увеличивает время передачи
+        actual_full_page = False if BROWSER_MODE == "remote" else full_page
+        page.screenshot(path=path, full_page=actual_full_page)
+    except Exception as e:
+        print(f"⚠️ Не удалось сохранить скриншот {name}: {e}")
+
+
 def run(playwright: Playwright) -> None:
     if BROWSER_MODE == "remote":
         if not BROWSERLESS_TOKEN:
@@ -104,16 +118,16 @@ def run(playwright: Playwright) -> None:
     step(lambda: page.get_by_role("button", name="Календарь").click())
     # Выбираем текущую дату по CSS-классу (подсвеченная кнопка сегодняшнего дня)
     step(lambda: page.locator(".g-date-calendar__button_current").first.click())
-    page.screenshot(path=os.path.join(VERIFIED_DIR, "01_start_page.png"))
+    save_screenshot(page, "01_start_page.png")
     step(lambda: page.get_by_role("button", name="Далее").click())
 
     step(lambda: page.locator("#answer_choices_68042447").click())
     step(lambda: page.locator("div").filter(has_text=re.compile(fr"^{re.escape(EMPLOYEE_NAME)}$")).nth(2).click())
-    page.screenshot(path=os.path.join(VERIFIED_DIR, "02_name_page.png"))
+    save_screenshot(page, "02_name_page.png")
     step(lambda: page.get_by_role("button", name="Далее").click())
 
     step(lambda: page.get_by_text("Нет").click())
-    page.screenshot(path=os.path.join(VERIFIED_DIR, "03_confirm_page.png"))
+    save_screenshot(page, "03_confirm_page.png")
     step(lambda: page.get_by_role("button", name="Далее").click())
 
     step(lambda: page.get_by_role("textbox", name="Обработка багов и заявок на доработку Обязательное поле").click())
@@ -175,8 +189,8 @@ def run(playwright: Playwright) -> None:
     step(lambda: page.get_by_role("textbox", name="Доработка сайтов support,").click())
     step(lambda: page.get_by_role("textbox", name="Доработка сайтов support,").fill(str(SITES_DEVELOPMENT)))
 
-    # Скриншот заполненного финала (вся страница)
-    page.screenshot(path=os.path.join(VERIFIED_DIR, "04_workload_filled.png"), full_page=True)
+    # Скриншот заполненного финала
+    save_screenshot(page, "04_workload_filled.png", full_page=True)
 
     # Нажимаем кнопку "Отправить"
     step(lambda: page.get_by_role("button", name="Отправить").click())
@@ -185,9 +199,9 @@ def run(playwright: Playwright) -> None:
     time.sleep(2)
 
     # Делаем финальный скриншот
-    page.screenshot(path=os.path.join(VERIFIED_DIR, "05_final_page.png"), full_page=True)
+    save_screenshot(page, "05_final_page.png", full_page=True)
 
-    print("\n✅ Форма отправлена! Финальный скриншот сохранен в папке 'verified'.")
+    print("\n✅ Форма отправлена! Скриншоты сохранены в папке 'verified'.")
     context.close()
     browser.close()
 
