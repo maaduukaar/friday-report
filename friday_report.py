@@ -22,6 +22,8 @@ DEPARTMENT = config.get("department", "ОППО")
 EMPLOYEE_NAME = config.get("employee_name", "Шведов Максим")
 BROWSER_MODE = config.get("browser_mode", "local").lower()
 BROWSERLESS_TOKEN = config.get("browserless_token", "")
+BROWSERLESS_ENDPOINT = config.get("browserless_endpoint", "wss://chrome.browserless.io").rstrip("/")
+SESSION_REPLAY = config.get("session_replay", False)
 
 # Извлечение трудозатрат
 workload = config.get("workload", {})
@@ -81,8 +83,11 @@ def run(playwright: Playwright) -> None:
         if not BROWSERLESS_TOKEN:
             print("\n❌ ОШИБКА: Токен 'browserless_token' не указан в config.toml для удаленного режима!")
             sys.exit(1)
-        ws_url = f"wss://chrome.browserless.io?token={BROWSERLESS_TOKEN}"
-        print("🌐 Подключение к удаленному браузеру Browserless...")
+        ws_url = f"{BROWSERLESS_ENDPOINT}?token={BROWSERLESS_TOKEN}"
+        if SESSION_REPLAY:
+            ws_url += "&replay=true"
+            print("🎥 Session Replay включен, сессия будет записана в дашборде browserless.io")
+        print(f"🌐 Подключение к удаленному браузеру {BROWSERLESS_ENDPOINT}...")
         browser = playwright.chromium.connect_over_cdp(ws_url)
     else:
         print("💻 Запуск локального браузера...")
@@ -181,6 +186,16 @@ def run(playwright: Playwright) -> None:
     save_screenshot(page, "05_final_page.png", full_page=True)
 
     print("\n✅ Форма отправлена! Скриншоты сохранены в папке 'verified'.")
+
+    # Останавливаем запись Session Replay через CDP
+    if BROWSER_MODE == "remote" and SESSION_REPLAY:
+        try:
+            cdp_session = context.new_cdp_session(page)
+            cdp_session.send("Browserless.stopSessionRecording")
+            print("🎥 Session Replay загружен в дашборд browserless.io")
+        except Exception as e:
+            print(f"⚠️ Не удалось остановить Session Replay: {e}")
+
     context.close()
     browser.close()
 
