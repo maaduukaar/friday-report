@@ -130,70 +130,49 @@ def run(playwright: Playwright) -> None:
     save_screenshot(page, "03_confirm_page.png")
     step(lambda: page.get_by_role("button", name="Далее").click())
 
-    step(lambda: page.get_by_role("textbox", name="Обработка багов и заявок на доработку Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Обработка багов и заявок на доработку Обязательное поле").press("Insert"))
-    step(lambda: page.get_by_role("textbox", name="Обработка багов и заявок на доработку Обязательное поле").press("NumLock"))
-    step(lambda: page.get_by_role("textbox", name="Обработка багов и заявок на доработку Обязательное поле").fill(str(BUGS_PROCESSING)))
+    # Ждем загрузки полей ввода трудозатрат
+    page.wait_for_selector("#id-question-68085646", timeout=15_000)
 
-    step(lambda: page.get_by_role("textbox", name="Техподдержка клиентов Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Техподдержка клиентов Обязательное поле").fill(str(CLIENT_SUPPORT)))
-
-    step(lambda: page.get_by_role("textbox", name="Техподдержка внутренних пользователей Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Техподдержка внутренних пользователей Обязательное поле").fill(str(INTERNAL_SUPPORT)))
-
-    step(lambda: page.get_by_role("textbox", name="Поиск обходных решений Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Поиск обходных решений Обязательное поле").fill(str(WORKAROUNDS)))
-
-    step(lambda: page.get_by_role("textbox", name="Поддержка внутренней инфраструктуры (прод, препрод, разработка, тестирование) Об").click())
-    step(lambda: page.get_by_role("textbox", name="Поддержка внутренней инфраструктуры (прод, препрод, разработка, тестирование) Об").fill(str(INFRASTRUCTURE)))
-
-    step(lambda: page.get_by_role("textbox", name="Работа с резервными копиями Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Работа с резервными копиями Обязательное поле").fill(str(BACKUPS)))
-
-    step(lambda: page.get_by_role("textbox", name="Работа с внутренней документацией и базой знаний Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Работа с внутренней документацией и базой знаний Обязательное поле").fill(str(DOCUMENTATION)))
-
-    step(lambda: page.get_by_role("textbox", name="Внутреннее обучение других сотрудников Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Внутреннее обучение других сотрудников Обязательное поле").fill(str(INTERNAL_TRAINING)))
-
-    step(lambda: page.get_by_role("textbox", name="Обучение, повышение квалификации Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Обучение, повышение квалификации Обязательное поле").fill(str(EXTERNAL_TRAINING)))
-
-    step(lambda: page.get_by_role("textbox", name="Ведение (подготовка) отчетности Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Ведение (подготовка) отчетности Обязательное поле").fill(str(REPORTING)))
-
-    step(lambda: page.get_by_role("textbox", name="Аналитика (Naumen").click())
-    step(lambda: page.get_by_role("textbox", name="Аналитика (Naumen").fill(str(ANALYTICS)))
-
-    step(lambda: page.get_by_role("textbox", name="Актуализиция информации по тикетам, работа в таск трекере (Youtrack").click())
-    step(lambda: page.get_by_role("textbox", name="Актуализиция информации по тикетам, работа в таск трекере (Youtrack").fill(str(TASK_TRACKER)))
-
-    step(lambda: page.get_by_role("textbox", name="Контроль качества (аудит) информации Обязательное поле").click())
-    step(lambda: page.get_by_role("textbox", name="Контроль качества (аудит) информации Обязательное поле").fill(str(QUALITY_CONTROL)))
-
-    step(lambda: page.get_by_role("textbox", name="Менеджмент (в т.ч. внутри подразделения, бизнес-процессы, смежные подразделения,").click())
-    step(lambda: page.get_by_role("textbox", name="Менеджмент (в т.ч. внутри подразделения, бизнес-процессы, смежные подразделения,").fill(str(MANAGEMENT)))
-
-    step(lambda: page.get_by_role("textbox", name="Доработка системы CRM").click())
-    step(lambda: page.get_by_role("textbox", name="Доработка системы CRM").fill(str(CRM_DEVELOPMENT)))
-
-    step(lambda: page.get_by_role("textbox", name="Администрирование Naumen").click())
-    step(lambda: page.get_by_role("textbox", name="Администрирование Naumen").fill(str(NAUMEN_ADMIN)))
-
-    step(lambda: page.get_by_role("textbox", name="Тех. сопровождение сайтов").click())
-    step(lambda: page.get_by_role("textbox", name="Тех. сопровождение сайтов").fill(str(SITES_TECH_SUPPORT)))
-
-    step(lambda: page.get_by_role("textbox", name="Администрирование сайтов").click())
-    step(lambda: page.get_by_role("textbox", name="Администрирование сайтов").fill(str(SITES_ADMIN)))
-
-    step(lambda: page.get_by_role("textbox", name="Доработка сайтов support,").click())
-    step(lambda: page.get_by_role("textbox", name="Доработка сайтов support,").fill(str(SITES_DEVELOPMENT)))
+    # Заполняем все поля одним JS-вызовом (критично для remote-режима — экономит время сессии)
+    # ID полей зафиксированы на основе реальной структуры формы
+    page.evaluate("""
+    (fields) => {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        for (const [id, val] of Object.entries(fields)) {
+            const el = document.getElementById(id);
+            if (!el) { console.warn('NOT FOUND: ' + id); continue; }
+            setter.call(el, String(val));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+    """, {
+        "id-question-68085646": workload.get("BUGS_PROCESSING", 0),
+        "id-question-68085807": workload.get("CLIENT_SUPPORT", 0),
+        "id-question-68087510": workload.get("INTERNAL_SUPPORT", 0),
+        "id-question-105349989": workload.get("WORKAROUNDS", 0),
+        "id-question-68085835": workload.get("INFRASTRUCTURE", 0),
+        "id-question-68085924": workload.get("BACKUPS", 0),
+        "id-question-68085987": workload.get("DOCUMENTATION", 0),
+        "id-question-68086033": workload.get("INTERNAL_TRAINING", 0),
+        "id-question-68086144": workload.get("EXTERNAL_TRAINING", 0),
+        "id-question-68086044": workload.get("REPORTING", 0),
+        "id-question-68086063": workload.get("ANALYTICS", 0),
+        "id-question-68086072": workload.get("TASK_TRACKER", 0),
+        "id-question-105348749": workload.get("QUALITY_CONTROL", 0),
+        "id-question-68086078": workload.get("MANAGEMENT", 0),
+        "id-question-68091795": workload.get("CRM_DEVELOPMENT", 0),
+        "id-question-75367696": workload.get("NAUMEN_ADMIN", 0),
+        "id-question-68092331": workload.get("SITES_TECH_SUPPORT", 0),
+        "id-question-68092354": workload.get("SITES_ADMIN", 0),
+        "id-question-68092384": workload.get("SITES_DEVELOPMENT", 0),
+    })
 
     # Скриншот заполненного финала
     save_screenshot(page, "04_workload_filled.png", full_page=True)
 
     # Нажимаем кнопку "Отправить"
-    step(lambda: page.get_by_role("button", name="Отправить").click())
+    # step(lambda: page.get_by_role("button", name="Отправить").click())
 
     # Короткая пауза, чтобы страница успела обновиться после клика
     time.sleep(2)
