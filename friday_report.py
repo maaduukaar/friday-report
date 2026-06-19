@@ -96,7 +96,7 @@ def run(playwright: Playwright) -> None:
 
     # --- Загрузка страницы с перезагрузкой при ошибке ---
     for attempt in range(1, MAX_RETRIES + 1):
-        page.goto(URL)
+        page.goto(URL, wait_until="commit")
         try:
             # Быстрая проверка загрузки формы (ожидаем селектор первой страницы)
             page.wait_for_selector("#answer_choices_68039958", timeout=15_000)
