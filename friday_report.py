@@ -71,9 +71,7 @@ def save_screenshot(page, name, full_page=False):
     
     path = os.path.join(VERIFIED_DIR, name)
     try:
-        # В удаленном режиме не используем full_page, так как это значительно увеличивает время передачи
-        actual_full_page = False if BROWSER_MODE == "remote" else full_page
-        page.screenshot(path=path, full_page=actual_full_page)
+        page.screenshot(path=path, full_page=full_page)
     except Exception as e:
         print(f"⚠️ Не удалось сохранить скриншот {name}: {e}")
 
