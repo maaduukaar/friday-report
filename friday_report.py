@@ -3,6 +3,7 @@ import time
 import sys
 import os
 import tomllib
+import json
 from playwright.sync_api import Playwright, sync_playwright
 
 # Force UTF-8 encoding for standard output and error on Windows to prevent encoding errors
@@ -35,10 +36,16 @@ SESSION_REPLAY = config.get("session_replay", False)
 DEBUG = config.get("debug", True)
 
 # Извлечение трудозатрат
-workload = config.get("workload", {})
+WORKLOAD_PATH = os.path.join(BASE_DIR, "workload.json")
+if not os.path.exists(WORKLOAD_PATH):
+    print(f"\n❌ ОШИБКА: Файл трудозатрат '{WORKLOAD_PATH}' не найден!")
+    sys.exit(1)
+
+with open(WORKLOAD_PATH, "r", encoding="utf-8") as f:
+    workload_data = json.load(f)
+workload = {k: v["value"] for k, v in workload_data.items()}
 
 # Динамическое создание переменных в глобальном пространстве имен для обратной совместимости 
-# (или можно использовать словарь workload напрямую, что чище)
 globals().update(workload)
 
 # Список всех ключей трудозатрат для проверки суммы
@@ -53,8 +60,8 @@ WORKLOAD_KEYS = [
 TOTAL_SUM = sum(workload.get(key, 0) for key in WORKLOAD_KEYS)
 
 if TOTAL_SUM != 100:
-    print(f"\n❌ ОШИБКА: Сумма трудозатрат в config.toml равна {TOTAL_SUM}, а должна быть ровно 100!")
-    print("Пожалуйста, исправьте значения в [workload].")
+    print(f"\n❌ ОШИБКА: Сумма трудозатрат в workload.json равна {TOTAL_SUM}, а должна быть ровно 100!")
+    print("Пожалуйста, исправьте значения в workload.json.")
     sys.exit(1)
 
 

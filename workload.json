@@ -1,0 +1,97 @@
+{
+    "SITES_ADMIN": {
+        "value": 0,
+        "name": "Администрирование сайтов",
+        "group": "my"
+    },
+    "SITES_DEVELOPMENT": {
+        "value": 90,
+        "name": "Доработка сайтов support",
+        "group": "my"
+    },
+    "REPORTING": {
+        "value": 5,
+        "name": "Ведение (подготовка) отчетности",
+        "group": "my"
+    },
+    "DOCUMENTATION": {
+        "value": 0,
+        "name": "Работа с внутренней документацией и базой знаний",
+        "group": "my"
+    },
+    "SITES_TECH_SUPPORT": {
+        "value": 0,
+        "name": "Тех. сопровождение сайтов",
+        "group": "my"
+    },
+    "BUGS_PROCESSING": {
+        "value": 0,
+        "name": "Обработка багов и заявок на доработку",
+        "group": "other"
+    },
+    "CLIENT_SUPPORT": {
+        "value": 0,
+        "name": "Техподдержка клиентов",
+        "group": "other"
+    },
+    "INTERNAL_SUPPORT": {
+        "value": 0,
+        "name": "Техподдержка внутренних пользователей",
+        "group": "other"
+    },
+    "WORKAROUNDS": {
+        "value": 0,
+        "name": "Поиск обходных решений",
+        "group": "other"
+    },
+    "INFRASTRUCTURE": {
+        "value": 0,
+        "name": "Поддержка внутренней инфраструктуры (прод, препрод, разработка, тестирование)",
+        "group": "other"
+    },
+    "BACKUPS": {
+        "value": 0,
+        "name": "Работа с резервными копиями",
+        "group": "other"
+    },
+    "INTERNAL_TRAINING": {
+        "value": 5,
+        "name": "Внутреннее обучение других сотрудников",
+        "group": "other"
+    },
+    "EXTERNAL_TRAINING": {
+        "value": 0,
+        "name": "Обучение, повышение квалификации",
+        "group": "other"
+    },
+    "ANALYTICS": {
+        "value": 0,
+        "name": "Аналитика (Naumen)",
+        "group": "other"
+    },
+    "TASK_TRACKER": {
+        "value": 0,
+        "name": "Актуализиция информации по тикетам, работа в таск трекере (Youtrack)",
+        "group": "other"
+    },
+    "QUALITY_CONTROL": {
+        "value": 0,
+        "name": "Контроль качества (аудит) информации",
+        "group": "other"
+    },
+    "MANAGEMENT": {
+        "value": 0,
+        "name": "Менеджмент (в т.ч. внутри подразделения, бизнес-процессы, смежные подразделения)",
+        "group": "other"
+    },
+    "CRM_DEVELOPMENT": {
+        "value": 0,
+        "name": "Доработка системы CRM",
+        "group": "other"
+    },
+    "NAUMEN_ADMIN": {
+        "value": 0,
+        "name": "Администрирование Naumen",
+        "group": "other"
+    }
+}

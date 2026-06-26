@@ -22,6 +22,7 @@ if sys.platform.startswith("win"):
 # --- НАСТРОЙКИ ПУТЕЙ ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.toml")
+WORKLOAD_PATH = os.path.join(BASE_DIR, "workload.json")
 STATE_FILE = os.path.join(BASE_DIR, "bot_state.json")
 
 # Дефолтные трудозатраты (для сброса)
@@ -104,57 +105,27 @@ def clean_category_name(name):
         name += ")"
     return name
 
-def parse_workload_details(filepath):
-    details = {}
-    in_workload = False
-    current_group = "my"
-    with open(filepath, "r", encoding="utf-8") as f:
-        for line in f:
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if stripped.startswith("[") and stripped.endswith("]"):
-                section = stripped[1:-1].strip()
-                in_workload = (section == "workload")
-                continue
-            if in_workload:
-                if "# Мои трудозатраты" in line:
-                    current_group = "my"
-                    continue
-                elif "# Остальное" in line:
-                    current_group = "other"
-                    continue
-                
-                match = re.match(r"^([A-Z_]+)\s*=\s*(\d+)(?:\s*#\s*(.*))?$", stripped)
-                if match:
-                    key = match.group(1)
-                    val = int(match.group(2))
-                    comment = match.group(3) or ""
-                    details[key] = {
-                        "value": val,
-                        "name": clean_category_name(comment) or key,
-                        "group": current_group
-                    }
-    return details
+def parse_workload_details(filepath=None):
+    try:
+        with open(WORKLOAD_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Ошибка загрузки workload.json: {e}")
+        return {}
 
 def update_config_value(key, value):
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    # Регулярка для замены KEY = VALUE
-    pattern = rf"^(\s*{key}\s*=\s*)\d+(\s*(?:#.*)?)$"
-    new_content, count = re.subn(pattern, rf"\g<1>{value}\g<2>", content, flags=re.MULTILINE)
-    
-    if count == 0:
-        # Резервный вариант на случай переноса строки Windows \r
-        pattern = rf"^(\s*{key}\s*=\s*)\d+(\s*(?:#.*)?)\r$"
-        new_content, count = re.subn(pattern, rf"\g<1>{value}\g<2>\r", content, flags=re.MULTILINE)
-        
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        f.write(new_content)
+    try:
+        with open(WORKLOAD_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if key in data:
+            data[key]["value"] = value
+        with open(WORKLOAD_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Ошибка обновления workload.json для {key}: {e}")
 
 def get_workload_summary_and_sum():
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     active_lines = []
     total_sum = 0
     for key, data in details.items():
@@ -368,7 +339,7 @@ def handle_menu_main(call):
 def handle_menu_edit(call):
     chat_id = call.message.chat.id
     clear_user_state(chat_id)
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     total_sum = sum(d["value"] for d in details.values())
     text = (
         "✏️ **Настройка трудозатрат**\n"
@@ -387,7 +358,7 @@ def handle_edit_cat(call):
     chat_id = call.message.chat.id
     clear_user_state(chat_id)
     _, key = call.data.split(":")
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     if key not in details:
         bot.answer_callback_query(call.id, "Категория не найдена.")
         return
@@ -413,7 +384,7 @@ def handle_edit_cat(call):
 def handle_add_other_menu(call):
     chat_id = call.message.chat.id
     clear_user_state(chat_id)
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     text = (
         "➕ **Добавление категорий из раздела 'Остальное'**\n"
         "Выберите категорию ниже, чтобы настроить её процент:"
@@ -433,7 +404,7 @@ def handle_reset_default(call):
     for key, val in DEFAULT_WORKLOAD.items():
         update_config_value(key, val)
         
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     text = (
         "✏️ **Настройка трудозатрат**\n"
         "Сброшено к стандартным настройкам!\n\n"
@@ -457,7 +428,7 @@ def handle_adjust(call):
     clear_user_state(chat_id)
     
     _, key, delta_str = call.data.split(":")
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     if key not in details:
         bot.answer_callback_query(call.id, "Категория не найдена.")
         return
@@ -479,7 +450,7 @@ def handle_adjust(call):
             
     if new_val != current_val:
         update_config_value(key, new_val)
-        details = parse_workload_details(CONFIG_PATH)
+        details = parse_workload_details(WORKLOAD_PATH)
         
     cat_name = details[key]["name"]
     total_sum = sum(d["value"] for d in details.values())
@@ -503,7 +474,7 @@ def handle_set_exact_callback(call):
     clear_user_state(chat_id)
     
     _, key = call.data.split(":")
-    details = parse_workload_details(CONFIG_PATH)
+    details = parse_workload_details(WORKLOAD_PATH)
     if key not in details:
         bot.answer_callback_query(call.id, "Категория не найдена.")
         return
@@ -570,7 +541,7 @@ def handle_text_messages(message):
             if 0 <= val <= 100:
                 update_config_value(key, val)
                 
-                details = parse_workload_details(CONFIG_PATH)
+                details = parse_workload_details(WORKLOAD_PATH)
                 cat_name = details[key]["name"]
                 total_sum = sum(d["value"] for d in details.values())
                 
@@ -592,7 +563,7 @@ def handle_text_messages(message):
             else:
                 raise ValueError()
         except ValueError:
-            details = parse_workload_details(CONFIG_PATH)
+            details = parse_workload_details(WORKLOAD_PATH)
             cat_name = details[key]["name"]
             prompt = bot.send_message(
                 chat_id,
