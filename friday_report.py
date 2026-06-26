@@ -5,6 +5,14 @@ import os
 import tomllib
 from playwright.sync_api import Playwright, sync_playwright
 
+# Force UTF-8 encoding for standard output and error on Windows to prevent encoding errors
+if sys.platform.startswith("win"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 # --- ЗАГРУЗКА НАСТРОЕК ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.toml")
@@ -211,5 +219,6 @@ def run(playwright: Playwright) -> None:
     browser.close()
 
 
-with sync_playwright() as playwright:
-    run(playwright)
+if __name__ == "__main__":
+    with sync_playwright() as playwright:
+        run(playwright)
