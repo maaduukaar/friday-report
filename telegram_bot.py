@@ -49,7 +49,7 @@ CONFIG_PATH = BASE_DIR / "config.toml"
 DATA_DIR = BASE_DIR / "data"
 DATABASE_PATH = DATA_DIR / "friday_report.db"
 REPORTS_DIR = DATA_DIR / "report-runs"
-MAX_USERS = 300
+DEFAULT_MAX_USERS = 300
 STATE_TTL_SECONDS = 15 * 60
 
 
@@ -162,6 +162,9 @@ def _load_settings() -> dict[str, Any]:
     except ValueError as error:
         raise RuntimeError("FRIDAY_REPORT_TIMEOUT_SECONDS должен быть целым числом") from error
     report_timeout = max(60, min(report_timeout, 30 * 60))
+    max_users = telegram_config.get("max_users", DEFAULT_MAX_USERS)
+    if isinstance(max_users, bool) or not isinstance(max_users, int) or max_users < 1:
+        raise RuntimeError("telegram.max_users должен быть положительным целым числом")
     debug = config.get("debug", True)
     if not isinstance(debug, bool):
         raise RuntimeError("debug должен быть true или false")
@@ -176,11 +179,12 @@ def _load_settings() -> dict[str, Any]:
         "legacy_department": str(config.get("department", "")).strip() or None,
         "workers": workers,
         "report_timeout": report_timeout,
+        "max_users": max_users,
     }
 
 
 SETTINGS = _load_settings()
-STORAGE = Storage(DATABASE_PATH, max_active_users=MAX_USERS)
+STORAGE = Storage(DATABASE_PATH, max_active_users=SETTINGS["max_users"])
 STORAGE.initialize()
 STORAGE.recover_interrupted_runs()
 if not STORAGE.has_admins() and not SETTINGS["bootstrap_admin_ids"]:
