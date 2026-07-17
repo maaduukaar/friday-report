@@ -15,9 +15,3 @@ browserless_endpoint = "wss://chrome.browserless.io"
 # Записывать сессию для просмотра в дашборде browserless.io (требует платного плана)
 session_replay = false
 
-# --- НАСТРОЙКИ TELEGRAM БОТА ---
-[telegram]
-token = "ВАШ_ТОКЕН_БОТА"
-# Список разрешенных Telegram Chat ID. Если пуст, первый пользователь, отправивший /start,
-# будет автоматически зарегистрирован как владелец.
-allowed_chat_ids = []
