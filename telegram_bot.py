@@ -237,14 +237,14 @@ def _bootstrap_profile_for(user_id: int) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _notify_admins_about_pending(pending_user: User) -> None:
+def _notify_admins_about_submitted_application(pending_user: User) -> None:
     for admin in STORAGE.list_active_users():
         if not admin.is_admin:
             continue
         try:
             bot.send_message(
                 admin.chat_id,
-                f"Новая заявка от пользователя {_user_label(pending_user)} (ID {pending_user.telegram_user_id}).\n"
+                f"Новая заявка с заполненным профилем от пользователя {_user_label(pending_user)} (ID {pending_user.telegram_user_id}).\n"
                 "Проверьте её через /admin.",
             )
         except Exception:
@@ -292,7 +292,7 @@ def _identify_message_user(message: Any, register_unknown: bool = True) -> User 
     if not register_unknown:
         return None
     try:
-        pending_user, created = STORAGE.register_pending_user(
+        pending_user, _ = STORAGE.register_pending_user(
             user_id,
             chat_id,
             getattr(sender, "username", None),
@@ -302,8 +302,6 @@ def _identify_message_user(message: Any, register_unknown: bool = True) -> User 
     except UserLimitReached:
         bot.send_message(chat_id, "Достигнут лимит в 300 зарегистрированных пользователей. Обратитесь к администратору.")
         return None
-    if created:
-        _notify_admins_about_pending(pending_user)
     return pending_user
 
 
@@ -326,8 +324,13 @@ def _identify_callback_user(call: Any) -> User | None:
 
 def _send_access_status(chat_id: int, user: User) -> None:
     if user.role == "pending":
-        profile_hint = " Заполните профиль через /profile." if not user.profile_complete else ""
-        bot.send_message(chat_id, f"Заявка ожидает подтверждения администратора.{profile_hint}")
+        if user.profile_complete:
+            bot.send_message(chat_id, "Профиль заполнен, заявка отправлена администратору. Дождитесь подтверждения.")
+        else:
+            bot.send_message(
+                chat_id,
+                "Сначала заполните профиль через /profile. Заявка будет отправлена администратору только после сохранения ФИО и подразделения.",
+            )
     elif user.role == "blocked":
         bot.send_message(chat_id, "Доступ к боту ограничен.")
 
@@ -1229,8 +1232,19 @@ def handle_text(message: Any) -> None:
             text, total = _main_menu_text(updated)
             bot.send_message(message.chat.id, "Профиль сохранён.", reply_markup=_main_keyboard(updated, total))
         else:
-            bot.send_message(message.chat.id, "Профиль сохранён. Теперь дождитесь подтверждения администратора.")
-            _notify_admins_about_pending(updated)
+            try:
+                submitted = STORAGE.claim_pending_application_submission(updated.telegram_user_id)
+            except StorageError:
+                bot.send_message(
+                    message.chat.id,
+                    "Профиль сохранён, но заявку пока не удалось отправить. Откройте /profile и сохраните данные ещё раз.",
+                )
+                return
+            if submitted:
+                bot.send_message(message.chat.id, "Профиль сохранён. Заявка отправлена администратору; дождитесь подтверждения.")
+                _notify_admins_about_submitted_application(updated)
+            else:
+                bot.send_message(message.chat.id, "Профиль сохранён. Ваша заявка уже отправлена администратору; дождитесь подтверждения.")
         return
     if action == "workload_exact":
         category = str(state.get("category", ""))

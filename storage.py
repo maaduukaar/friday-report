@@ -159,6 +159,11 @@ class Storage:
                     PRIMARY KEY (user_id, reminder_date)
                 );
 
+                CREATE TABLE IF NOT EXISTS pending_application_submissions (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(telegram_user_id) ON DELETE CASCADE,
+                    submitted_at TEXT NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS audit_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     actor_user_id INTEGER REFERENCES users(telegram_user_id) ON DELETE SET NULL,
@@ -171,6 +176,20 @@ class Storage:
             )
             connection.execute(
                 "INSERT OR IGNORE INTO bot_settings(key, value) VALUES ('weekly_send_limit', '1')"
+            )
+            # Profiles completed before this table was introduced had already
+            # triggered the legacy notification flow. Mark them as submitted
+            # during startup migration so editing their profile cannot send a
+            # third application to administrators.
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO pending_application_submissions(user_id, submitted_at)
+                SELECT telegram_user_id, updated_at
+                FROM users
+                WHERE role = 'pending'
+                  AND TRIM(COALESCE(employee_name, '')) != ''
+                  AND TRIM(COALESCE(department, '')) != ''
+                """
             )
 
     def has_admins(self) -> bool:
@@ -416,6 +435,39 @@ class Storage:
                 "SELECT * FROM users WHERE role IN ('admin', 'user') ORDER BY telegram_user_id"
             ).fetchall()
         return [self._row_to_user(row) for row in rows]
+
+    def claim_pending_application_submission(self, user_id: int) -> bool:
+        """Mark a completed pending profile as submitted exactly once.
+
+        The caller sends the administrator notification only when this method
+        returns ``True``.  Keeping the marker in SQLite prevents duplicate
+        notifications when a pending user reopens and saves their profile.
+        """
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            user = connection.execute(
+                "SELECT role, employee_name, department FROM users WHERE telegram_user_id = ?",
+                (user_id,),
+            ).fetchone()
+            if user is None or user["role"] != "pending":
+                connection.rollback()
+                raise StorageError("Pending user was not found")
+            if not self._clean_profile_value(user["employee_name"]) or not self._clean_profile_value(user["department"]):
+                connection.rollback()
+                raise ProfileIncomplete("The user must complete their profile before submitting an application")
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO pending_application_submissions(user_id, submitted_at)
+                VALUES (?, ?)
+                """,
+                (user_id, self._now()),
+            )
+            submitted = cursor.rowcount == 1
+            if submitted:
+                self._audit(connection, user_id, user_id, "user.application_submitted")
+            connection.commit()
+        return submitted
 
     def set_profile(self, actor_user_id: int, employee_name: str, department: str) -> User:
         employee_name = self._validate_profile_value(employee_name, "Employee name")

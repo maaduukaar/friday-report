@@ -11,6 +11,7 @@ import unittest
 
 from storage import (
     InvalidSetting,
+    ProfileIncomplete,
     ReportInProgress,
     Storage,
     StorageError,
@@ -75,6 +76,36 @@ class StorageTestCase(unittest.TestCase):
                     self.storage.set_weekly_send_limit(actor_user_id=1, value=value)  # type: ignore[arg-type]
 
         self.assertEqual(self.storage.get_weekly_send_limit(), 1)
+
+    def test_pending_application_is_claimed_once_after_profile_completion(self) -> None:
+        pending_user, created = self.storage.register_pending_user(
+            telegram_user_id=2,
+            chat_id=10_002,
+            username="pending_2",
+            first_name="Pending",
+            last_name="User",
+        )
+        self.assertTrue(created)
+        with self.assertRaises(ProfileIncomplete):
+            self.storage.claim_pending_application_submission(pending_user.telegram_user_id)
+
+        self.storage.set_profile(pending_user.telegram_user_id, "Employee 2", "IT")
+        self.assertTrue(self.storage.claim_pending_application_submission(pending_user.telegram_user_id))
+        self.assertFalse(self.storage.claim_pending_application_submission(pending_user.telegram_user_id))
+
+    def test_restart_migrates_existing_completed_pending_profile(self) -> None:
+        pending_user, _ = self.storage.register_pending_user(
+            telegram_user_id=2,
+            chat_id=10_002,
+            username="pending_2",
+            first_name="Pending",
+            last_name="User",
+        )
+        self.storage.set_profile(pending_user.telegram_user_id, "Employee 2", "IT")
+
+        restarted_storage = Storage(self.database_path)
+        restarted_storage.initialize()
+        self.assertFalse(restarted_storage.claim_pending_application_submission(pending_user.telegram_user_id))
 
     def test_quota_is_per_user_and_resets_at_iso_week_boundary(self) -> None:
         self.create_admin()
