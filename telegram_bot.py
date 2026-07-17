@@ -217,6 +217,10 @@ def _user_label(user: User) -> str:
     return " ".join(part for part in [user.first_name or "", user.last_name or ""] if part).strip()[:80] or str(user.telegram_user_id)
 
 
+def _user_department(user: User) -> str:
+    return user.department or "не указано"
+
+
 def _button_label(value: str, max_bytes: int = 48) -> str:
     """Trim text by UTF-8 bytes for Telegram's inline-button limit."""
 
@@ -245,6 +249,7 @@ def _notify_admins_about_submitted_application(pending_user: User) -> None:
             bot.send_message(
                 admin.chat_id,
                 f"Новая заявка с заполненным профилем от пользователя {_user_label(pending_user)} (ID {pending_user.telegram_user_id}).\n"
+                f"Подразделение: {_user_department(pending_user)}\n"
                 "Проверьте её через /admin.",
             )
         except Exception:
@@ -528,7 +533,8 @@ def _pending_text(page: int = 0) -> tuple[str, int]:
     if not pending_users:
         return "Нет ожидающих заявок.", page
     items = "\n".join(
-        f"• ID {pending.telegram_user_id}: {_user_label(pending)}" for pending in pending_users
+        f"• ID {pending.telegram_user_id}: {_user_label(pending)}\n  Подразделение: {_user_department(pending)}"
+        for pending in pending_users
     )
     return (
         f"Ожидающие заявки, страница {page + 1}/{page_count}. "
@@ -633,7 +639,10 @@ def handle_users(message: Any) -> None:
     if not users:
         bot.send_message(message.chat.id, "Нет активных пользователей.")
         return
-    lines = [f"ID {item.telegram_user_id}: {_user_label(item)} ({item.role})" for item in users]
+    lines = [
+        f"ID {item.telegram_user_id}: {_user_label(item)} — {_user_department(item)} ({item.role})"
+        for item in users
+    ]
     for start in range(0, len(lines), 40):
         prefix = "Активные пользователи:\n" if start == 0 else "Продолжение:\n"
         bot.send_message(message.chat.id, prefix + "\n".join(lines[start : start + 40]))
